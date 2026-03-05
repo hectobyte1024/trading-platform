@@ -1,0 +1,50 @@
+[package]
+name = "auth-service"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+common = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+# JWT and crypto
+jsonwebtoken = { workspace = true }
+ring = { workspace = true }
+# WebAuthn
+p256 = { version = "0.13", features = ["ecdsa"] }
+rsa = "0.9"
+ciborium = "0.2"
+hex = "0.4"
+# Database
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
+# Time and IDs
+chrono = { workspace = true }
+uuid = { workspace = true }
+# Serialization
+serde_json = { workspace = true }
+base64 = "0.22"
+# Async
+async-trait = "0.1"
+futures = "0.3"
+# Security
+argon2 = "0.5"
+rand = "0.8"
+sha2 = "0.10"
+# KMS/HSM Integration
+rusoto_kms = "0.48"
+rusoto_core = "0.48"
+# Data structures
+dashmap = "6.0"
+# Error handling
+anyhow = { workspace = true }
+thiserror = "1.0"
+# Audit/Kafka
+kafka-adapter = { path = "../kafka-adapter" }
+event-journal = { path = "../event-journal" }
+
+[dev-dependencies]
+tempfile = "3.10"
+tokio-test = "0.4"

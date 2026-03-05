@@ -1,0 +1,123 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/common",
+    "crates/event-journal",
+    "crates/matching-engine",
+    "crates/risk-engine",
+    "crates/liquidation-engine",
+    "crates/ledger",
+    "crates/auth-service",
+    "crates/kafka-adapter",
+    "crates/postgres-adapter",
+    "crates/redis-adapter",
+    "crates/api-gateway",
+]
+
+[package]
+name = "trading-platform"
+version.workspace = true
+edition.workspace = true
+
+[[example]]
+name = "demo"
+path = "examples/demo.rs"
+
+[dependencies]
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+rust_decimal.workspace = true
+rust_decimal_macros.workspace = true
+common.workspace = true
+event-journal.workspace = true
+matching-engine.workspace = true
+risk-engine.workspace = true
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Trading Platform Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourorg/trading-platform"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.36", features = ["full"] }
+tokio-util = "0.7"
+tokio-stream = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+
+# Time and UUID
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.7", features = ["v4", "serde"] }
+
+# Numeric types for financial precision
+rust_decimal = { version = "1.34", features = ["serde-bincode"] }
+rust_decimal_macros = "1.34"
+
+# Data structures
+indexmap = { version = "2.2", features = ["serde"] }
+dashmap = "5.5"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "rust_decimal"] }
+deadpool-postgres = "0.12"
+
+# Redis
+redis = { version = "0.25", features = ["aio", "tokio-comp", "connection-manager"] }
+
+# Kafka
+rdkafka = { version = "0.36", features = ["cmake-build"] }
+
+# Crypto for JWT
+jsonwebtoken = "9.2"
+ring = "0.17"
+
+# HTTP and API
+axum = { version = "0.7", features = ["ws", "macros"] }
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["catch-panic", "cors", "trace", "compression-full"] }
+hyper = { version = "1.1", features = ["full"] }
+
+# Testing and benchmarking
+criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
+proptest = "1.4"
+mockall = "0.12"
+
+# Internal workspace crates
+common = { path = "crates/common" }
+event-journal = { path = "crates/event-journal" }
+matching-engine = { path = "crates/matching-engine" }
+risk-engine = { path = "crates/risk-engine" }
+liquidation-engine = { path = "crates/liquidation-engine" }
+ledger = { path = "crates/ledger" }
+auth-service = { path = "crates/auth-service" }
+kafka-adapter = { path = "crates/kafka-adapter" }
+postgres-adapter = { path = "crates/postgres-adapter" }
+redis-adapter = { path = "crates/redis-adapter" }
+api-gateway = { path = "crates/api-gateway" }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.bench]
+inherits = "release"
+strip = false
+debug = true

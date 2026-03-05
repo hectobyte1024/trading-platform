@@ -1,0 +1,31 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Event journals
+*.jsonl
+events/
+
+# Benchmarks
+criterion/
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# System
+.tmp/
+tmp/
