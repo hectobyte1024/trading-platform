@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
+import MarketTicker from '@/components/trading/MarketTicker'
 
 interface HeaderProps {
   selectedSymbol: string
@@ -44,7 +45,10 @@ export function Header({ selectedSymbol, onSymbolChange, connected }: HeaderProp
           </select>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
+          {/* Real-time Market Ticker */}
+          <MarketTicker />
+          
           {/* Connection Status */}
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
