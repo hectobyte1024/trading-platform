@@ -9,9 +9,38 @@ interface MarketStatsProps {
   symbol: string
 }
 
+interface ExternalMarketData {
+  symbol: string
+  price: string
+  change_24h: string | null
+  volume_24h: string | null
+  timestamp: string
+}
+
 export function MarketStats({ symbol }: MarketStatsProps) {
   const { subscribe, unsubscribe } = useWebSocket()
   const [marketData, setMarketData] = useState<MarketData | null>(null)
+  const [externalData, setExternalData] = useState<ExternalMarketData | null>(null)
+
+  // Fetch real market data from CoinGecko/Binance
+  useEffect(() => {
+    const fetchMarketData = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/market-data/BTC-USD')
+        if (response.ok) {
+          const data = await response.json()
+          setExternalData(data)
+        }
+      } catch (err) {
+        console.error('Error fetching external market data:', err)
+      }
+    }
+
+    fetchMarketData()
+    const interval = setInterval(fetchMarketData, 3000) // Update every 3 seconds
+
+    return () => clearInterval(interval)
+  }, [symbol])
 
   useEffect(() => {
     const handleMarketUpdate = (message: WebSocketMessage) => {
@@ -27,8 +56,18 @@ export function MarketStats({ symbol }: MarketStatsProps) {
     }
   }, [symbol, subscribe, unsubscribe])
 
-  // Mock data for demo purposes
-  const mockData: MarketData = marketData || {
+  // Use external data if available, otherwise use WebSocket data or mock
+  const displayData: MarketData = externalData ? {
+    symbol: externalData.symbol,
+    last_price: externalData.price,
+    bid: marketData?.bid || '0.00',
+    ask: marketData?.ask || '0.00',
+    volume_24h: externalData.volume_24h || '0',
+    high_24h: marketData?.high_24h || externalData.price,
+    low_24h: marketData?.low_24h || externalData.price,
+    change_24h: externalData.change_24h || '0',
+    timestamp: externalData.timestamp,
+  } : marketData || {
     symbol,
     last_price: '0.00',
     bid: '0.00',
@@ -40,7 +79,7 @@ export function MarketStats({ symbol }: MarketStatsProps) {
     timestamp: new Date().toISOString(),
   }
 
-  const change = parseFloat(mockData.change_24h)
+  const change = parseFloat(displayData.change_24h)
   const isPositive = change >= 0
 
   return (
@@ -50,7 +89,7 @@ export function MarketStats({ symbol }: MarketStatsProps) {
         <div>
           <div className="text-xs text-gray-500 mb-1">Last Price</div>
           <div className={`text-2xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-            {formatPrice(mockData.last_price)}
+            {formatPrice(displayData.last_price)}
           </div>
         </div>
 
@@ -58,7 +97,7 @@ export function MarketStats({ symbol }: MarketStatsProps) {
         <div>
           <div className="text-xs text-gray-500 mb-1">24h Change</div>
           <div className={`text-lg font-semibold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-            {formatPercent(mockData.change_24h)}
+            {formatPercent(displayData.change_24h)}
           </div>
         </div>
 
@@ -66,7 +105,7 @@ export function MarketStats({ symbol }: MarketStatsProps) {
         <div>
           <div className="text-xs text-gray-500 mb-1">24h High</div>
           <div className="text-lg font-semibold text-white">
-            {formatPrice(mockData.high_24h)}
+            {formatPrice(displayData.high_24h)}
           </div>
         </div>
 
@@ -74,7 +113,7 @@ export function MarketStats({ symbol }: MarketStatsProps) {
         <div>
           <div className="text-xs text-gray-500 mb-1">24h Low</div>
           <div className="text-lg font-semibold text-white">
-            {formatPrice(mockData.low_24h)}
+            {formatPrice(displayData.low_24h)}
           </div>
         </div>
 
@@ -82,7 +121,7 @@ export function MarketStats({ symbol }: MarketStatsProps) {
         <div>
           <div className="text-xs text-gray-500 mb-1">24h Volume</div>
           <div className="text-lg font-semibold text-white">
-            {formatQuantity(mockData.volume_24h, 0)}
+            {formatQuantity(displayData.volume_24h, 0)}
           </div>
         </div>
 
@@ -90,7 +129,7 @@ export function MarketStats({ symbol }: MarketStatsProps) {
         <div>
           <div className="text-xs text-gray-500 mb-1">Bid</div>
           <div className="text-lg font-semibold text-green-400">
-            {formatPrice(mockData.bid)}
+            {formatPrice(displayData.bid)}
           </div>
         </div>
 
@@ -98,7 +137,7 @@ export function MarketStats({ symbol }: MarketStatsProps) {
         <div>
           <div className="text-xs text-gray-500 mb-1">Ask</div>
           <div className="text-lg font-semibold text-red-400">
-            {formatPrice(mockData.ask)}
+            {formatPrice(displayData.ask)}
           </div>
         </div>
       </div>
