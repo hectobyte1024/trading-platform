@@ -10,6 +10,7 @@ class WebSocketClient {
   private maxReconnectAttempts: number = 10
   private callbacks: Map<string, Set<MessageCallback>> = new Map()
   private connected: boolean = false
+  private activeSubscriptions: Set<string> = new Set()
 
   constructor(url?: string) {
     this.url = url || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws'
@@ -24,6 +25,15 @@ class WebSocketClient {
           console.log('WebSocket connected')
           this.connected = true
           this.reconnectAttempts = 0
+          
+          // Re-send all active subscriptions
+          this.activeSubscriptions.forEach(symbol => {
+            this.send({
+              type: 'subscribe',
+              symbol,
+            })
+          })
+          
           resolve()
         }
 
@@ -83,11 +93,15 @@ class WebSocketClient {
     }
     this.callbacks.get(type)!.add(callback)
 
+    // Track active subscription
+    this.activeSubscriptions.add(type)
+
     // Send subscription message if connected
-    if (this.ws && this.connected) {
+    // Backend expects: { type: 'subscribe', symbol: 'BTC/USD' }
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.send({
-        action: 'subscribe',
-        channel: type,
+        type: 'subscribe',
+        symbol: type,
       })
     }
   }
@@ -98,12 +112,14 @@ class WebSocketClient {
       callbacks.delete(callback)
       if (callbacks.size === 0) {
         this.callbacks.delete(type)
+        this.activeSubscriptions.delete(type)
         
         // Send unsubscription message
-        if (this.ws && this.connected) {
+        // Backend expects: { type: 'unsubscribe', symbol: 'BTC/USD' }
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
           this.send({
-            action: 'unsubscribe',
-            channel: type,
+            type: 'unsubscribe',
+            symbol: type,
           })
         }
       }
@@ -111,7 +127,7 @@ class WebSocketClient {
   }
 
   send(data: any) {
-    if (this.ws && this.connected) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data))
     } else {
       console.warn('WebSocket not connected, message not sent:', data)
@@ -127,7 +143,7 @@ class WebSocketClient {
   }
 
   isConnected(): boolean {
-    return this.connected
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN
   }
 }
 

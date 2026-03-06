@@ -8,21 +8,24 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 export default function Home() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC-USD')
-  const { connected, send } = useWebSocket()
+  const { connected, subscribe, unsubscribe } = useWebSocket()
 
   useEffect(() => {
-    if (connected) {
-      // Subscribe to market data for this symbol
-      send({ action: 'subscribe', symbol: selectedSymbol })
+    if (!connected) return
+
+    // Callback for market data updates
+    const handleMarketData = (message: any) => {
+      console.log('Market data update:', message)
     }
+
+    // Subscribe to market data for this symbol
+    subscribe(selectedSymbol, handleMarketData)
     
     return () => {
-      if (connected) {
-        // Unsubscribe when symbol changes
-        send({ action: 'unsubscribe', symbol: selectedSymbol })
-      }
+      // Unsubscribe when symbol changes or component unmounts
+      unsubscribe(selectedSymbol, handleMarketData)
     }
-  }, [selectedSymbol, connected, send])
+  }, [selectedSymbol, connected, subscribe, unsubscribe])
 
   return (
     <ProtectedRoute>

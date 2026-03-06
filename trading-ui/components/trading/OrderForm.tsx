@@ -48,7 +48,7 @@ export function OrderForm({ symbol }: OrderFormProps) {
       order_type: orderType,
       quantity,
       ...(orderType === 'Limit' && { price }),
-      time_in_force: 'GTC',
+      time_in_force: 'gtc',  // Lowercase for backend
     }
 
     placeOrderMutation.mutate(request)

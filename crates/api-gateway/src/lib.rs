@@ -15,6 +15,7 @@ use tower_http::trace::TraceLayer;
 pub mod rest;
 pub mod websocket;
 pub mod middleware;
+pub mod auth;
 
 /// API Gateway Configuration
 #[derive(Debug, Clone)]
@@ -46,13 +47,24 @@ pub fn create_router<J: EventJournal + 'static, R: RiskCheck + 'static>(
     };
 
     let mut router = Router::new()
-        // REST endpoints
+        // Health check
         .route("/health", get(rest::health_check))
+        // Authentication endpoints
+        .route("/auth/login", post(auth::login))
+        .route("/auth/register", post(auth::register))
+        .route("/auth/logout", post(auth::logout))
+        .route("/auth/refresh", post(auth::refresh))
+        .route("/auth/webauthn/register/init", post(auth::webauthn_register_init))
+        .route("/auth/webauthn/register/complete", post(auth::webauthn_register_complete))
+        .route("/auth/webauthn/auth/init", post(auth::webauthn_auth_init))
+        .route("/auth/webauthn/auth/complete", post(auth::webauthn_auth_complete))
+        // Trading endpoints
         .route("/orders", post(rest::place_order))
         .route("/orders/:order_id", delete(rest::cancel_order))
         .route("/orderbook/:symbol", get(rest::get_orderbook))
         .route("/accounts/register", post(rest::register_account))
         .route("/accounts/:user_id/positions", get(rest::get_positions))
+        .route("/accounts/:user_id", get(rest::get_account))
         // WebSocket endpoint
         .route("/ws", get(websocket::ws_handler))
         .with_state(state);

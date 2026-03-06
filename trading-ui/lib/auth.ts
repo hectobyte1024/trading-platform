@@ -65,7 +65,16 @@ class AuthService {
   // Login with email/password
   async login(credentials: LoginCredentials): Promise<{ user: User; tokens: AuthTokens }> {
     const response = await api.client.post('/auth/login', credentials)
-    const { user, tokens } = response.data
+    
+    // Backend returns: { access_token, refresh_token, user }
+    const { access_token, refresh_token, user } = response.data
+    
+    const tokens: AuthTokens = {
+      access_token,
+      refresh_token,
+      expires_in: 3600, // 1 hour default
+    }
+    
     this.saveTokens(tokens, user)
     return { user, tokens }
   }
@@ -73,7 +82,16 @@ class AuthService {
   // Register new user
   async register(request: RegisterRequest): Promise<{ user: User; tokens: AuthTokens }> {
     const response = await api.client.post('/auth/register', request)
-    const { user, tokens } = response.data
+    
+    // Backend returns: { access_token, refresh_token, user }
+    const { access_token, refresh_token, user } = response.data
+    
+    const tokens: AuthTokens = {
+      access_token,
+      refresh_token,
+      expires_in: 3600, // 1 hour default
+    }
+    
     this.saveTokens(tokens, user)
     return { user, tokens }
   }
@@ -100,11 +118,16 @@ class AuthService {
       refresh_token: refreshToken,
     })
 
-    const tokens = response.data
-    const user = this.getCurrentUser()
-    if (user) {
-      this.saveTokens(tokens, user)
+    // Backend returns: { access_token, refresh_token, user }
+    const { access_token, refresh_token: new_refresh_token, user } = response.data
+    
+    const tokens: AuthTokens = {
+      access_token,
+      refresh_token: new_refresh_token,
+      expires_in: 3600, // 1 hour default
     }
+    
+    this.saveTokens(tokens, user)
     return tokens
   }
 
@@ -178,7 +201,15 @@ class AuthService {
       credential: this.credentialToJSON(credential),
     })
 
-    const { user, tokens } = response.data
+    // Backend returns: { access_token, refresh_token, user }
+    const { access_token, refresh_token, user } = response.data
+    
+    const tokens: AuthTokens = {
+      access_token,
+      refresh_token,
+      expires_in: 3600, // 1 hour default
+    }
+    
     this.saveTokens(tokens, user)
     return { user, tokens }
   }

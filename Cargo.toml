@@ -23,16 +23,22 @@ edition.workspace = true
 name = "demo"
 path = "examples/demo.rs"
 
+[[example]]
+name = "server"
+path = "examples/server.rs"
+
 [dependencies]
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 rust_decimal.workspace = true
 rust_decimal_macros.workspace = true
+anyhow.workspace = true
 common.workspace = true
 event-journal.workspace = true
 matching-engine.workspace = true
 risk-engine.workspace = true
+api-gateway = { path = "crates/api-gateway" }
 
 [workspace.package]
 version = "0.1.0"

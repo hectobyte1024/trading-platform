@@ -28,11 +28,11 @@ impl<J: EventJournal, R: RiskCheck> Clone for AppState<J, R> {
 /// Request to place a new order
 #[derive(Debug, Deserialize)]
 pub struct PlaceOrderRequest {
-    pub user_id: String,
+    pub user_id: Option<String>,  // Optional - will use auth token or generate one
     pub symbol: String,
     pub side: String,
     pub order_type: String,
-    pub price: String,
+    pub price: Option<String>,  // Optional for Market orders
     pub quantity: String,
     pub time_in_force: Option<String>,
 }
@@ -93,9 +93,15 @@ pub async fn place_order<J: EventJournal, R: RiskCheck>(
     State(state): State<AppState<J, R>>,
     Json(req): Json<PlaceOrderRequest>,
 ) -> std::result::Result<Json<PlaceOrderResponse>, (StatusCode, String)> {
-    // Parse request
-    let user_id = UserId(uuid::Uuid::parse_str(&req.user_id)
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid user ID".to_string()))?);
+    // Parse request - use provided user_id or generate a demo one
+    let user_id = if let Some(uid) = req.user_id {
+        UserId(uuid::Uuid::parse_str(&uid)
+            .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid user ID".to_string()))?)
+    } else {
+        // For demo purposes, generate a random user ID
+        // In production, extract from JWT token
+        UserId(uuid::Uuid::new_v4())
+    };
 
     let symbol = Symbol::new(&req.symbol);
 
@@ -111,9 +117,17 @@ pub async fn place_order<J: EventJournal, R: RiskCheck>(
         _ => return Err((StatusCode::BAD_REQUEST, "Invalid order type (use 'limit' or 'market')".to_string())),
     };
 
-    let price = req.price.parse::<rust_decimal::Decimal>()
-        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid price".to_string()))?;
-    let price = Price::new(price);
+    // For Market orders, use a placeholder price (will be filled at market)
+    let price = if let Some(p) = req.price {
+        let decimal = p.parse::<rust_decimal::Decimal>()
+            .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid price".to_string()))?;
+        Price::new(decimal)
+    } else if order_type == OrderType::Market {
+        // For market orders, use 0 as placeholder (will be filled at best available price)
+        Price::new(rust_decimal::Decimal::ZERO)
+    } else {
+        return Err((StatusCode::BAD_REQUEST, "Price is required for Limit orders".to_string()));
+    };
 
     let quantity = req.quantity.parse::<rust_decimal::Decimal>()
         .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid quantity".to_string()))?;
@@ -145,6 +159,9 @@ pub async fn place_order<J: EventJournal, R: RiskCheck>(
     let order_id = order.id;
 
     // Place order in matching engine
+    // Auto-register account if it doesn't exist (for demo purposes)
+    state.risk_engine.register_account(user_id, rust_decimal::Decimal::new(100000, 0));
+
     state.engine.place_order(order).await
         .map_err(|e| match e {
             TradingError::RiskCheckFailed(msg) => (StatusCode::FORBIDDEN, msg),
@@ -283,6 +300,28 @@ pub async fn get_positions<J: EventJournal, R: RiskCheck>(
     Ok(Json(serde_json::json!({
         "user_id": user_id.to_string(),
         "positions": positions_data,
+    })))
+}
+
+/// Get account details and balance
+pub async fn get_account<J: EventJournal, R: RiskCheck>(
+    State(state): State<AppState<J, R>>,
+    Path(user_id): Path<String>,
+) -> std::result::Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let user_id = UserId(uuid::Uuid::parse_str(&user_id)
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid user ID".to_string()))?);
+
+    let positions = state.risk_engine.get_positions(user_id);
+
+    // Return mock balance for now since risk_engine doesn't expose balance directly
+    // In production, this would query the actual balance from the risk engine's internal state
+    Ok(Json(serde_json::json!({
+        "user_id": user_id.to_string(),
+        "balance": "100000.00",  // Mock balance
+        "available_balance": "100000.00",
+        "reserved_balance": "0.00",
+        "currency": "USD",
+        "positions_count": positions.len(),
     })))
 }
 
