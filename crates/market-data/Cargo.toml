@@ -1,0 +1,20 @@
+[package]
+name = "market-data"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3"
+tracing.workspace = true
+rust_decimal.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+common.workspace = true
+
+[dev-dependencies]
+tokio-test = "0.4"

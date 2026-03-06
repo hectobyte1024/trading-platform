@@ -14,6 +14,7 @@ use std::sync::Arc;
 pub struct AppState<J: EventJournal, R: RiskCheck> {
     pub engine: Arc<MatchingEngine<J, R>>,
     pub risk_engine: Arc<AdaptiveRiskEngine>,
+    pub market_data: Option<Arc<market_data::MarketDataAggregator>>,
 }
 
 impl<J: EventJournal, R: RiskCheck> Clone for AppState<J, R> {
@@ -21,6 +22,7 @@ impl<J: EventJournal, R: RiskCheck> Clone for AppState<J, R> {
         Self {
             engine: self.engine.clone(),
             risk_engine: self.risk_engine.clone(),
+            market_data: self.market_data.clone(),
         }
     }
 }

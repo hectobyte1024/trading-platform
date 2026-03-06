@@ -16,6 +16,7 @@ pub mod rest;
 pub mod websocket;
 pub mod middleware;
 pub mod auth;
+pub mod market;
 
 /// API Gateway Configuration
 #[derive(Debug, Clone)]
@@ -39,11 +40,13 @@ impl Default for ApiConfig {
 pub fn create_router<J: EventJournal + 'static, R: RiskCheck + 'static>(
     engine: Arc<MatchingEngine<J, R>>,
     risk_engine: Arc<AdaptiveRiskEngine>,
+    market_data: Option<Arc<market_data::MarketDataAggregator>>,
     config: ApiConfig,
 ) -> Router {
     let state = rest::AppState {
         engine,
         risk_engine,
+        market_data,
     };
 
     let mut router = Router::new()
@@ -65,6 +68,9 @@ pub fn create_router<J: EventJournal + 'static, R: RiskCheck + 'static>(
         .route("/accounts/register", post(rest::register_account))
         .route("/accounts/:user_id/positions", get(rest::get_positions))
         .route("/accounts/:user_id", get(rest::get_account))
+        // Market data endpoints 
+        .route("/market-data/BTC-USD", get(market::get_market_data))
+        .route("/market-data/BTC-USD/historical", get(market::get_historical_data))
         // WebSocket endpoint
         .route("/ws", get(websocket::ws_handler))
         .with_state(state);
@@ -92,12 +98,13 @@ pub fn create_router<J: EventJournal + 'static, R: RiskCheck + 'static>(
 pub async fn start_server<J: EventJournal + 'static, R: RiskCheck + 'static>(
     engine: Arc<MatchingEngine<J, R>>,
     risk_engine: Arc<AdaptiveRiskEngine>,
+    market_data: Option<Arc<market_data::MarketDataAggregator>>,
     config: ApiConfig,
 ) -> std::result::Result<(), TradingError> {
     let addr = format!("{}:{}", config.host, config.port);
     tracing::info!("Starting API Gateway on {}", addr);
 
-    let router = create_router(engine, risk_engine, config);
+    let router = create_router(engine, risk_engine, market_data, config);
 
     let listener = tokio::net::TcpListener::bind(&addr)
         .await

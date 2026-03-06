@@ -2,6 +2,7 @@ use api_gateway::{ApiConfig, start_server};
 use matching_engine::MatchingEngine;
 use event_journal::FileJournal;
 use risk_engine::{AdaptiveRiskEngine, RiskLimits};
+use market_data::MarketDataAggregator;
 use common::{Order, OrderId, UserId, Symbol, Side, OrderType, Price, Quantity, TimeInForce, OrderStatus};
 use std::sync::Arc;
 use rust_decimal_macros::dec;
@@ -41,6 +42,17 @@ async fn main() -> anyhow::Result<()> {
     seed_orderbook(engine.clone(), risk_engine.clone()).await?;
     println!("✅ Orderbook seeded\n");
 
+    // Start market data aggregator
+    println!("📊 Starting market data aggregator...");
+    let market_data = Arc::new(MarketDataAggregator::new());
+    let market_data_clone = market_data.clone();
+    tokio::spawn(async move {
+        if let Err(e) = market_data_clone.start().await {
+            tracing::error!("Market data aggregator error: {}", e);
+        }
+    });
+    println!("✅ Market data live: CoinGecko + Binance WebSocket\n");
+
     // Configure API Gateway
     let config = ApiConfig {
         host: "0.0.0.0".to_string(),
@@ -51,10 +63,11 @@ async fn main() -> anyhow::Result<()> {
     println!("✅ All components initialized");
     println!("📡 API Gateway starting on http://{}:{}", config.host, config.port);
     println!("🔌 WebSocket endpoint: ws://{}:{}/ws", config.host, config.port);
-    println!("🏥 Health check: http://{}:{}/health\n", config.host, config.port);
+    println!("🏥 Health check: http://{}:{}/health", config.host, config.port);
+    println!("📈 Market data: http://{}:{}/market-data/BTC-USD\n", config.host, config.port);
 
     // Start the server
-    start_server(engine, risk_engine, config).await?;
+    start_server(engine, risk_engine, Some(market_data), config).await?;
 
     Ok(())
 }
