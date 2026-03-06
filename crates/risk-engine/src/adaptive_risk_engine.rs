@@ -109,7 +109,19 @@ impl AdaptiveRiskEngine {
             TradingError::RiskCheckFailed(format!("Account not found for user {}", order.user_id))
         })?;
 
-        // Calculate required balance (simplified - in production would be more complex)
+        // For market orders, we can't calculate exact required balance upfront
+        // Just check that user has some balance
+        if order.order_type == common::OrderType::Market {
+            if account.available_balance <= Decimal::ZERO {
+                return Err(TradingError::InsufficientBalance {
+                    required: Decimal::ONE,
+                    available: account.available_balance,
+                });
+            }
+            return Ok(());
+        }
+
+        // For limit orders, calculate required balance
         let required = order.price.0 * order.quantity.0;
 
         if account.available_balance < required {

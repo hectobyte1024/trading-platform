@@ -1,5 +1,5 @@
 use crate::orderbook::OrderBook;
-use common::{Order, OrderId, OrderStatus, Price, Quantity, RiskCheck, Result, Symbol, TradingError, UserId};
+use common::{Order, OrderId, OrderStatus, OrderType, Price, Quantity, RiskCheck, Result, Symbol, TradingError, UserId};
 use event_journal::{
     EventJournal, MatchingEngineEvent, OrderPlacedData, TradeExecutedData,
 };
@@ -276,8 +276,9 @@ impl<J: EventJournal, R: RiskCheck> MatchingEngine<J, R> {
             return Err(TradingError::InvalidQuantity("Quantity must be positive".to_string()));
         }
 
-        if order.price <= Price::zero() {
-            return Err(TradingError::InvalidPrice("Price must be positive".to_string()));
+        // Market orders can have price 0 (will be filled at best available price)
+        if order.order_type == OrderType::Limit && order.price <= Price::zero() {
+            return Err(TradingError::InvalidPrice("Price must be positive for limit orders".to_string()));
         }
 
         Ok(())

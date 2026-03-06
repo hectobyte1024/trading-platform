@@ -34,6 +34,7 @@ tracing-subscriber.workspace = true
 rust_decimal.workspace = true
 rust_decimal_macros.workspace = true
 anyhow.workspace = true
+chrono.workspace = true
 common.workspace = true
 event-journal.workspace = true
 matching-engine.workspace = true

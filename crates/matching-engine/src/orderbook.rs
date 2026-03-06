@@ -115,12 +115,18 @@ impl OrderBook {
             let (best_price, can_match) = if order.side == Side::Buy {
                 // For buy orders, match against lowest ask
                 let best_price = self.asks.keys().next().copied();
-                let can_match = best_price.map_or(false, |p| order.price >= p);
+                // Market orders match at any price, limit orders need price <= ask
+                let can_match = best_price.map_or(false, |p| {
+                    order.order_type == common::OrderType::Market || order.price >= p
+                });
                 (best_price, can_match)
             } else {
                 // For sell orders, match against highest bid
                 let best_price = self.bids.keys().next_back().copied();
-                let can_match = best_price.map_or(false, |p| order.price <= p);
+                // Market orders match at any price, limit orders need price >= bid
+                let can_match = best_price.map_or(false, |p| {
+                    order.order_type == common::OrderType::Market || order.price <= p
+                });
                 (best_price, can_match)
             };
 
