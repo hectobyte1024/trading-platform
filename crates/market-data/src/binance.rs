@@ -1,5 +1,6 @@
 use anyhow::Result;
 use futures_util::StreamExt;
+use reqwest::Client;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -107,6 +108,70 @@ impl BinanceWebSocket {
 }
 
 impl Default for BinanceWebSocket {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Binance REST API client for historical data
+pub struct BinanceRestClient {
+    client: Client,
+    base_url: String,
+}
+
+impl BinanceRestClient {
+    pub fn new() -> Self {
+        Self {
+            client: Client::new(),
+            base_url: "https://api.binance.com/api/v3".to_string(),
+        }
+    }
+
+    /// Fetch historical klines (candlestick) data for the last 24 hours
+    /// Returns Vec of (timestamp_ms, close_price)
+    pub async fn get_historical_24h(&self) -> Result<Vec<(i64, Decimal)>> {
+        // Get klines for BTCUSDT with 5-minute intervals for last 24 hours
+        // 24h = 1440 minutes, 5-min intervals = 288 candles
+        let url = format!(
+            "{}/klines?symbol=BTCUSDT&interval=5m&limit=288",
+            self.base_url
+        );
+
+        info!("Fetching 24h historical BTC data from Binance");
+
+        let response = self.client
+            .get(&url)
+            .header("Accept", "application/json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            warn!("Binance API error: {}", response.status());
+            anyhow::bail!("Binance API returned error: {}", response.status());
+        }
+
+        // Binance klines format: [timestamp, open, high, low, close, volume, ...]
+        let data: Vec<serde_json::Value> = response.json().await?;
+        
+        let mut prices = Vec::new();
+        for kline in data {
+            if let Some(arr) = kline.as_array() {
+                if arr.len() >= 5 {
+                    if let (Some(timestamp), Some(close_str)) = (arr[0].as_i64(), arr[4].as_str()) {
+                        if let Ok(close_price) = Decimal::from_str(close_str) {
+                            prices.push((timestamp, close_price));
+                        }
+                    }
+                }
+            }
+        }
+
+        info!("Fetched {} historical price points from Binance", prices.len());
+        Ok(prices)
+    }
+}
+
+impl Default for BinanceRestClient {
     fn default() -> Self {
         Self::new()
     }

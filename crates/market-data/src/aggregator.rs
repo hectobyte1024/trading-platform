@@ -1,4 +1,4 @@
-use crate::{BinanceWebSocket, CoinGeckoClient};
+use crate::{BinanceRestClient, BinanceWebSocket, CoinGeckoClient};
 use anyhow::Result;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -17,6 +17,7 @@ pub struct MarketUpdate {
 /// Aggregates market data from multiple sources
 pub struct MarketDataAggregator {
     coingecko: CoinGeckoClient,
+    binance_rest: BinanceRestClient,
     binance: BinanceWebSocket,
     current_price: Arc<RwLock<Decimal>>,
     update_tx: broadcast::Sender<MarketUpdate>,
@@ -28,6 +29,7 @@ impl MarketDataAggregator {
         
         Self {
             coingecko: CoinGeckoClient::new(),
+            binance_rest: BinanceRestClient::new(),
             binance: BinanceWebSocket::new(),
             current_price: Arc::new(RwLock::new(Decimal::ZERO)),
             update_tx,
@@ -118,7 +120,8 @@ impl MarketDataAggregator {
 
     /// Get historical price data for charts
     pub async fn get_historical_24h(&self) -> Result<Vec<(i64, Decimal)>> {
-        self.coingecko.get_historical_24h().await
+        // Use Binance REST API for historical data (more reliable than CoinGecko free tier)
+        self.binance_rest.get_historical_24h().await
     }
 }
 
