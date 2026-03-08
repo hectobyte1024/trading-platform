@@ -23,8 +23,8 @@ const TIMEFRAME_CONFIG = {
   '15m': { label: '15m', limit: 96 },   // 24 hours
   '1h': { label: '1H', limit: 168 },    // 1 week
   '4h': { label: '4H', limit: 180 },    // 30 days
-  '1d': { label: '1D', limit: 90 },     // 3 months
-  '1w': { label: '1W', limit: 52 },     // 1 year
+  '1d': { label: '1D', limit: 365 },    // 1 year
+  '1w': { label: '1W', limit: 104 },    // 2 years
 }
 
 // Custom Candlestick Shape Component
@@ -33,6 +33,10 @@ const Candlestick = (props: any) => {
   const isGreen = close > open
   const color = isGreen ? '#10b981' : '#ef4444'
   const ratio = Math.abs(height / (open - close))
+  
+  // Make candles narrower - use max 80% of available width, capped at 8px
+  const candleWidth = Math.min(width * 0.8, 8)
+  const candleX = x + (width - candleWidth) / 2
 
   return (
     <g>
@@ -47,9 +51,9 @@ const Candlestick = (props: any) => {
       />
       {/* Body (open-close rectangle) */}
       <rect
-        x={x}
+        x={candleX}
         y={y}
-        width={width}
+        width={candleWidth}
         height={height || 1} // Min height of 1px for doji candles
         fill={color}
         stroke={color}
@@ -219,13 +223,18 @@ export function CandlestickChart({ symbol }: CandlestickChartProps) {
             {/* Price Chart (70% height) */}
             <div className="flex-[7]">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={candles} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
+                <ComposedChart 
+                  data={candles} 
+                  margin={{ top: 10, right: 10, bottom: 0, left: 0 }}
+                  barCategoryGap="10%"
+                >
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={formatTimestamp}
                     stroke="#6b7280"
                     style={{ fontSize: '11px' }}
-                    minTickGap={50}
+                    minTickGap={30}
+                    height={30}
                   />
                   <YAxis
                     domain={[priceRange.min * 0.999, priceRange.max * 1.001]}
@@ -240,6 +249,7 @@ export function CandlestickChart({ symbol }: CandlestickChartProps) {
                     dataKey="open"
                     shape={<Candlestick />}
                     isAnimationActive={false}
+                    maxBarSize={12}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -248,13 +258,18 @@ export function CandlestickChart({ symbol }: CandlestickChartProps) {
             {/* Volume Chart (30% height) */}
             <div className="flex-[3]">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={candles} margin={{ top: 0, right: 10, bottom: 10, left: 0 }}>
+                <ComposedChart 
+                  data={candles} 
+                  margin={{ top: 0, right: 10, bottom: 10, left: 0 }}
+                  barCategoryGap="10%"
+                >
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={formatTimestamp}
                     stroke="#6b7280"
                     style={{ fontSize: '11px' }}
-                    minTickGap={50}
+                    minTickGap={30}
+                    height={30}
                   />
                   <YAxis
                     tickFormatter={(value) => formatQuantity(value, 0)}
@@ -271,7 +286,11 @@ export function CandlestickChart({ symbol }: CandlestickChartProps) {
                     }}
                     formatter={(value: number) => [formatQuantity(value, 2), 'Volume']}
                   />
-                  <Bar dataKey="volume" isAnimationActive={false}>
+                  <Bar 
+                    dataKey="volume" 
+                    isAnimationActive={false}
+                    maxBarSize={12}
+                  >
                     {candles.map((candle, index) => (
                       <Cell
                         key={`cell-${index}`}
