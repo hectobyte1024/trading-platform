@@ -169,6 +169,94 @@ impl BinanceRestClient {
         info!("Fetched {} historical price points from Binance", prices.len());
         Ok(prices)
     }
+
+    /// Fetch candlestick (OHLCV) data for charting
+    /// Timeframes: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
+    pub async fn get_candlesticks(&self, interval: &str, limit: u16) -> Result<Vec<Candlestick>> {
+        let url = format!(
+            "{}/klines?symbol=BTCUSDT&interval={}&limit={}",
+            self.base_url, interval, limit
+        );
+
+        info!("Fetching {} candlesticks with {} interval from Binance", limit, interval);
+
+        let response = self.client
+            .get(&url)
+            .header("Accept", "application/json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            warn!("Binance API error: {}", response.status());
+            anyhow::bail!("Binance API returned error: {}", response.status());
+        }
+
+        // Binance klines format: [
+        //   0: Open time (timestamp)
+        //   1: Open price
+        //   2: High price
+        //   3: Low price
+        //   4: Close price
+        //   5: Volume
+        //   6: Close time
+        //   ... more fields
+        // ]
+        let data: Vec<serde_json::Value> = response.json().await?;
+        
+        let mut candles = Vec::new();
+        for kline in data {
+            if let Some(arr) = kline.as_array() {
+                if arr.len() >= 6 {
+                    let timestamp = arr[0].as_i64();
+                    let open_str = arr[1].as_str();
+                    let high_str = arr[2].as_str();
+                    let low_str = arr[3].as_str();
+                    let close_str = arr[4].as_str();
+                    let volume_str = arr[5].as_str();
+
+                    if let (Some(ts), Some(o), Some(h), Some(l), Some(c), Some(v)) = 
+                        (timestamp, open_str, high_str, low_str, close_str, volume_str) {
+                        if let (Ok(open), Ok(high), Ok(low), Ok(close), Ok(volume)) = (
+                            Decimal::from_str(o),
+                            Decimal::from_str(h),
+                            Decimal::from_str(l),
+                            Decimal::from_str(c),
+                            Decimal::from_str(v),
+                        ) {
+                            candles.push(Candlestick {
+                                timestamp: ts,
+                                open,
+                                high,
+                                low,
+                                close,
+                                volume,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        info!("Fetched {} candlesticks from Binance", candles.len());
+        Ok(candles)
+    }
+}
+
+/// Candlestick (OHLCV) data for charting
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Candlestick {
+    /// Timestamp in milliseconds
+    pub timestamp: i64,
+    /// Opening price
+    pub open: Decimal,
+    /// Highest price
+    pub high: Decimal,
+    /// Lowest price
+    pub low: Decimal,
+    /// Closing price
+    pub close: Decimal,
+    /// Trading volume
+    pub volume: Decimal,
 }
 
 impl Default for BinanceRestClient {

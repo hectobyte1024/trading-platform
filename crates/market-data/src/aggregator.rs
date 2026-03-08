@@ -1,4 +1,4 @@
-use crate::{BinanceRestClient, BinanceWebSocket, CoinGeckoClient};
+use crate::{BinanceRestClient, BinanceWebSocket, Candlestick, CoinGeckoClient};
 use anyhow::Result;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -122,6 +122,13 @@ impl MarketDataAggregator {
     pub async fn get_historical_24h(&self) -> Result<Vec<(i64, Decimal)>> {
         // Use Binance REST API for historical data (more reliable than CoinGecko free tier)
         self.binance_rest.get_historical_24h().await
+    }
+
+    /// Get candlestick (OHLCV) data for TradingView-style charts
+    /// interval: 1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w
+    /// limit: number of candles (max 1000)
+    pub async fn get_candlesticks(&self, interval: &str, limit: u16) -> Result<Vec<Candlestick>> {
+        self.binance_rest.get_candlesticks(interval, limit).await
     }
 }
 

@@ -71,6 +71,7 @@ pub fn create_router<J: EventJournal + 'static, R: RiskCheck + 'static>(
         // Market data endpoints 
         .route("/market-data/BTC-USD", get(market::get_market_data))
         .route("/market-data/BTC-USD/historical", get(market::get_historical_data))
+        .route("/market-data/BTC-USD/candlesticks", get(market::get_candlestick_data))
         // WebSocket endpoint
         .route("/ws", get(websocket::ws_handler))
         .with_state(state);

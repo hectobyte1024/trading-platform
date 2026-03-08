@@ -1,5 +1,5 @@
 use axum::{
-    extract::State,
+    extract::{Query, State},
     http::StatusCode,
     response::Json,
 };
@@ -7,6 +7,7 @@ use crate::rest::AppState;
 use common::RiskCheck;
 use event_journal::EventJournal;
 use serde::{Deserialize, Serialize};
+use market_data::Candlestick;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MarketDataResponse {
@@ -70,5 +71,84 @@ pub async fn get_historical_data<J: EventJournal, R: RiskCheck>(
         symbol: "BTC-USD".to_string(),
         interval: "1m".to_string(),
         data,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CandlestickQuery {
+    /// Timeframe: 1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w
+    #[serde(default = "default_interval")]
+    pub interval: String,
+    /// Number of candles to return (max 1000)
+    #[serde(default = "default_limit")]
+    pub limit: u16,
+}
+
+fn default_interval() -> String {
+    "1h".to_string()
+}
+
+fn default_limit() -> u16 {
+    100
+}
+
+#[derive(Debug, Serialize)]
+pub struct CandlestickResponse {
+    pub symbol: String,
+    pub interval: String,
+    pub candles: Vec<CandlestickData>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CandlestickData {
+    pub timestamp: i64,
+    pub open: String,
+    pub high: String,
+    pub low: String,
+    pub close: String,
+    pub volume: String,
+}
+
+/// Get candlestick (OHLCV) data for TradingView-style charts
+/// Query params: ?interval=1h&limit=100
+/// Supported intervals: 1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w
+pub async fn get_candlestick_data<J: EventJournal, R: RiskCheck>(
+    Query(params): Query<CandlestickQuery>,
+    State(state): State<AppState<J, R>>,
+) -> std::result::Result<Json<CandlestickResponse>, (StatusCode, String)> {
+    let aggregator = state.market_data
+        .ok_or((StatusCode::SERVICE_UNAVAILABLE, "Market data not available".to_string()))?;
+    
+    // Validate interval
+    let valid_intervals = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w"];
+    if !valid_intervals.contains(&params.interval.as_str()) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("Invalid interval. Supported: {}", valid_intervals.join(", "))
+        ));
+    }
+
+    // Limit to max 1000 candles
+    let limit = params.limit.min(1000);
+
+    let candles = aggregator.get_candlesticks(&params.interval, limit).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to fetch candlesticks: {}", e)))?;
+
+    let candle_data = candles
+        .into_iter()
+        .map(|c| CandlestickData {
+            timestamp: c.timestamp,
+            open: c.open.to_string(),
+            high: c.high.to_string(),
+            low: c.low.to_string(),
+            close: c.close.to_string(),
+            volume: c.volume.to_string(),
+        })
+        .collect();
+
+    Ok(Json(CandlestickResponse {
+        symbol: "BTC-USD".to_string(),
+        interval: params.interval,
+        candles: candle_data,
     }))
 }
